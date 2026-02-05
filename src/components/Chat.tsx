@@ -15,6 +15,8 @@ export const Chat = ({ backendUrl, conversationSid }: ChatProps) => {
   const [useBackend, setUseBackend] = useState(!!backendUrl);
   const [currentIdentity, setCurrentIdentity] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -68,11 +70,14 @@ export const Chat = ({ backendUrl, conversationSid }: ChatProps) => {
 
       if (useBackend && backendUrl) {
         // Get JWT from localStorage using auth service
-        const authToken = getStoredToken();
+        const jwtToken = getStoredToken();
         
-        if (!authToken) {
+        if (!jwtToken) {
           throw new Error('Please login first - authentication token not found');
         }
+        
+        // Store JWT for message attributes
+        setAuthToken(jwtToken);
         
         // Step 1: Get Twilio token (passing JWT)
         // Identity will be extracted from JWT on backend
@@ -81,8 +86,8 @@ export const Chat = ({ backendUrl, conversationSid }: ChatProps) => {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            'Auth-Token': authToken,
-            'X-Auth-Token': authToken,
+            'Auth-Token': jwtToken,
+            'X-Auth-Token': jwtToken,
           },
         });
 
@@ -105,8 +110,9 @@ export const Chat = ({ backendUrl, conversationSid }: ChatProps) => {
            throw new Error('Backend did not return identity');
          }
          
-         // Store identity for message comparison
+         // Store identity for message comparison and userId for message attributes
          setCurrentIdentity(identityFromBackend);
+         setUserId(userIdFromBackend);
         
         // Step 2: Create or get conversation if not provided
         // Pass all required parameters including identity
@@ -117,20 +123,20 @@ export const Chat = ({ backendUrl, conversationSid }: ChatProps) => {
               userId: userIdFromBackend,
               uniqueName: identityFromBackend,
               identity: identityFromBackend,
-              jwtToken: authToken ? 'present' : 'missing'
+              jwtToken: jwtToken ? 'present' : 'missing'
             });
             
             const conversationResponse = await fetch(`${backendUrl}/api/twilio/conversation`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Auth-Token': authToken, // JWT in header
+                'Auth-Token': jwtToken, // JWT in header
               },
               body: JSON.stringify({ 
                 userId: userIdFromBackend || identityFromBackend,
                 uniqueName: identityFromBackend, // Use identity as uniqueName fallback
                 identity: identityFromBackend, // CRITICAL: Pass identity to add as participant
-                jwtToken: authToken, // JWT in body for attributes
+                jwtToken: jwtToken, // JWT in body for attributes
               }),
             });
 
@@ -158,11 +164,11 @@ export const Chat = ({ backendUrl, conversationSid }: ChatProps) => {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Auth-Token': authToken, // JWT in header
+                'Auth-Token': jwtToken, // JWT in header
               },
               body: JSON.stringify({ 
                 identity: identityFromBackend, // CRITICAL: Pass identity
-                jwtToken: authToken, // JWT in body
+                jwtToken: jwtToken, // JWT in body
               }),
             });
 
@@ -205,7 +211,11 @@ export const Chat = ({ backendUrl, conversationSid }: ChatProps) => {
     e.preventDefault();
     if (!messageInput.trim() || !isConnected) return;
 
-    await sendMessage(messageInput.trim());
+    // Send message with hidden metadata (JWT and userId in attributes)
+    await sendMessage(messageInput.trim(), {
+      jwtToken: authToken || undefined,
+      userId: userId || undefined,
+    });
     setMessageInput('');
   };
 

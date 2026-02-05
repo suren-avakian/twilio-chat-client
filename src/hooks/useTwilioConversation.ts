@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Client, Conversation, Message } from '@twilio/conversations';
 
+interface MessageMetadata {
+  jwtToken?: string;
+  userId?: string;
+  [key: string]: any; // Allow additional fields
+}
+
 interface UseTwilioConversationReturn {
   client: Client | null;
   conversation: Conversation | null;
@@ -8,7 +14,7 @@ interface UseTwilioConversationReturn {
   isConnected: boolean;
   isLoading: boolean;
   error: string | null;
-  sendMessage: (messageBody: string) => Promise<void>;
+  sendMessage: (messageBody: string, metadata?: MessageMetadata) => Promise<void>;
   connect: (token: string, conversationSid?: string) => Promise<void>;
 }
 
@@ -232,14 +238,36 @@ export const useTwilioConversation = (): UseTwilioConversationReturn => {
   }, []);
 
   const sendMessage = useCallback(
-    async (messageBody: string) => {
+    async (messageBody: string, metadata?: MessageMetadata) => {
       if (!conversation) {
         setError('Not connected to a conversation');
         return;
       }
 
       try {
-        await conversation.sendMessage(messageBody);
+        // Send message with attributes (hidden metadata)
+        const attributes: Record<string, any> = {
+          timestamp: new Date().toISOString(),
+        };
+
+        // Add JWT and userId if provided
+        if (metadata?.jwtToken) {
+          attributes.jwtToken = metadata.jwtToken;
+        }
+        if (metadata?.userId) {
+          attributes.userId = metadata.userId;
+        }
+
+        // Add any additional metadata fields
+        if (metadata) {
+          Object.keys(metadata).forEach(key => {
+            if (key !== 'jwtToken' && key !== 'userId' && metadata[key] !== undefined) {
+              attributes[key] = metadata[key];
+            }
+          });
+        }
+
+        await conversation.sendMessage(messageBody, attributes);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
         setError(errorMessage);
