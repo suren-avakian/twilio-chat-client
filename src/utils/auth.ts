@@ -31,6 +31,7 @@ function getApiRoute(): string {
 function getAppToken(): string {
   const token = import.meta.env.VITE_X_APP_TOKEN;
   if (!token) {
+    console.error('❌ VITE_X_APP_TOKEN is not configured');
     throw new Error('VITE_X_APP_TOKEN environment variable is required');
   }
   return token;
