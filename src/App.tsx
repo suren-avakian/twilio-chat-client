@@ -9,7 +9,7 @@ function App() {
   const [isAuth, setIsAuth] = useState(() => isAuthenticated());
 
   // You can set these via environment variables or pass them as props
-  const backendUrl = import.meta.env.VITE_NODE_JS_MICROSERVICE_BACKEND_URL || 'http://localhost:3001';
+  const backendUrl = import.meta.env.VITE_NODE_JS_MICROSERVICE_BACKEND_URL || 'http://localhost:3000';
   const conversationSid = import.meta.env.VITE_CONVERSATION_SID;
 
   const handleLoginSuccess = () => {

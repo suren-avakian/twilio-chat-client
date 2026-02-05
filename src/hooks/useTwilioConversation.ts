@@ -4,7 +4,7 @@ import { Client, Conversation, Message } from '@twilio/conversations';
 interface MessageMetadata {
   jwtToken?: string;
   userId?: string;
-  [key: string]: any; // Allow additional fields
+  [key: string]: string | undefined; // Allow additional fields
 }
 
 interface UseTwilioConversationReturn {
@@ -111,7 +111,7 @@ export const useTwilioConversation = (): UseTwilioConversationReturn => {
       });
 
       // Get or create conversation
-      let conv: Conversation;
+      let conv: Conversation | undefined;
       if (conversationSid) {
         try {
           // First, try to get from subscribed conversations
@@ -179,7 +179,8 @@ export const useTwilioConversation = (): UseTwilioConversationReturn => {
                     `Original error: ${lastError?.message || 'Unknown error'}`
                   );
                 }
-              } catch (finalErr) {
+              } catch {
+                // Error caught but we use lastError for the message
                 throw new Error(
                   `Failed to get conversation ${conversationSid}: ${lastError?.message || 'Unknown error'}. ` +
                   `Make sure the conversation exists and you are added as a participant.`
@@ -246,7 +247,7 @@ export const useTwilioConversation = (): UseTwilioConversationReturn => {
 
       try {
         // Send message with attributes (hidden metadata)
-        const attributes: Record<string, any> = {
+        const attributes: Record<string, string | number | boolean | null> = {
           timestamp: new Date().toISOString(),
         };
 
